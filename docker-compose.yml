@@ -1,0 +1,45 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: rategrabber-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=sqlite:////app/data/rate_grabber.db
+      - BASE_URL=${PUBLIC_BASE_URL:-http://localhost}
+      - FRONTEND_URL=${PUBLIC_BASE_URL:-http://localhost}
+      - GOOGLE_PLACES_API_KEY=${GOOGLE_PLACES_API_KEY:-}
+      - ADMIN_PIN=${ADMIN_PIN:-123456}
+      - SECRET_KEY=${SECRET_KEY:-rate-grabber-secret-key-production-ready}
+    volumes:
+      - rategrabber-data:/app/data
+    networks:
+      - rategrabber-net
+    expose:
+      - "8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: rategrabber-frontend
+    restart: unless-stopped
+    ports:
+      - "${PORT:-80}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - rategrabber-net
+
+volumes:
+  rategrabber-data:
+    name: rategrabber_db_data
+    driver: local
+
+networks:
+  rategrabber-net:
+    driver: bridge
