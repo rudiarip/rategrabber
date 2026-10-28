@@ -1,31 +1,58 @@
 services:
+  # 1. PostgreSQL Database Service
+  postgres:
+    image: postgres:16-alpine
+    container_name: tapstar-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-tapstar_db}
+    volumes:
+      - tapstar-postgres-data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-tapstar_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tapstar-net
+
+  # 2. FastAPI Backend Service
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: rategrabber-backend
+    container_name: tapstar-backend
     restart: unless-stopped
     env_file:
       - .env
     environment:
-      - DATABASE_URL=sqlite:////app/data/rate_grabber.db
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-tapstar_db}
       - BASE_URL=${PUBLIC_BASE_URL:-http://localhost}
       - FRONTEND_URL=${PUBLIC_BASE_URL:-http://localhost}
       - GOOGLE_PLACES_API_KEY=${GOOGLE_PLACES_API_KEY:-}
-      - ADMIN_PIN=${ADMIN_PIN:-123456}
-      - SECRET_KEY=${SECRET_KEY:-rate-grabber-secret-key-production-ready}
+      - SECRET_KEY=${SECRET_KEY:-tapstar-jwt-secret-key-production-ready}
+      - DEFAULT_SUPERADMIN_USERNAME=${DEFAULT_SUPERADMIN_USERNAME:-superadmin}
+      - DEFAULT_SUPERADMIN_PASSWORD=${DEFAULT_SUPERADMIN_PASSWORD:-Password123!}
     volumes:
-      - rategrabber-data:/app/data
+      - tapstar-data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
-      - rategrabber-net
+      - tapstar-net
     expose:
       - "8000"
 
+  # 3. Frontend & Nginx Single-Port Reverse Proxy
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: rategrabber-frontend
+    container_name: tapstar-frontend
     restart: unless-stopped
     ports:
       - "${PORT:-80}:80"
@@ -33,13 +60,16 @@ services:
       backend:
         condition: service_healthy
     networks:
-      - rategrabber-net
+      - tapstar-net
 
 volumes:
-  rategrabber-data:
-    name: rategrabber_db_data
+  tapstar-postgres-data:
+    name: tapstar_postgres_data
+    driver: local
+  tapstar-data:
+    name: tapstar_app_data
     driver: local
 
 networks:
-  rategrabber-net:
+  tapstar-net:
     driver: bridge

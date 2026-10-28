@@ -363,7 +363,7 @@ export default function AdminDashboard({ onSelectCardForActivation }) {
                             textDecoration: 'underline'
                           }}
                         >
-                          + Aktivasi Kartu Ini
+                          Aktivasi Kartu Ini
                         </button>
                       )}
                     </td>

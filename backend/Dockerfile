@@ -9,10 +9,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app
 
-# Install system dependencies (build-essential, curl for healthcheck)
+# Install system dependencies (build-essential, curl for healthcheck, libpq)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     gcc \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install

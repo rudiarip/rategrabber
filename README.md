@@ -1,44 +1,60 @@
-# 🌟 RateGrabber - Smart Google Review NFC & QR System
+# ⭐ TapStar - Smart NFC & QR Review Management System
 
-Sistem kartu & standee akrilik Google Review pintar dengan fitur **Auto-Aktivasi Dinamis**. Kartu dapat dicetak massal terlebih dahulu (dengan QR & chip NFC) tanpa perlu tahu siapa pembelinya. Pembeli mengaktifkan kartu sendiri cukup dengan sekali scan!
+Sistem kartu & standee akrilik Google Review pintar dengan fitur **Auto-Aktivasi Dinamis**, **Autentikasi JWT**, **Role-Based Access Control (RBAC)**, dan **Database PostgreSQL**.
 
 ---
 
 ## 🚀 Fitur Utama
 
-1. **Alur Smart Redirect (HTTP 302 Fast Redirect)**:
-   - **Scan Pertama (Unactivated):** Mengarahkan pembeli langsung ke halaman aktivasi di HP.
-   - **Scan Seterusnya (Activated):** Mengarahkan pengunjung cafe/toko langsung ke formulir rating bintang 5 Google Review (`https://search.google.com/local/writereview?placeid=...`) dalam hitungan milidetik.
-2. **Auto-Aktivasi Google Maps**:
-   - Integrasi pencarian autocomplete Google Places.
-   - Pilihan lokasi otomatis mengambil Google `place_id`.
-   - Dilindungi **PIN/Kata Sandi** pengaman agar kartu tidak bisa diubah oleh sembarang orang.
-3. **Dashboard Admin**:
-   - Generator kartu massal (Batch Generator) hingga ratusan kartu dalam 1 klik.
+1. **Keamanan & Autentikasi Modern (JWT & RBAC)**:
+   - Login administrator menggunakan JSON Web Token (JWT).
+   - Hak akses berjenjang berbasis peran (*Role-Based Access Control*):
+     - **Super Admin**: Memiliki seluruh akses tanpa batas ke semua menu dan fungsi API.
+     - **Admin / Operator / Staf**: Hak akses fungsional (`View`, `Create`, `Update`, `Delete`) dapat diatur secara modular.
+2. **Dynamic Sidebar Berbasis Permissions**:
+   - Sidebar menu hanya memuat modul yang diizinkan untuk role yang sedang login.
+   - Tombol-tombol fungsional (generate barcode, ubah kartu, hapus) dilindungi oleh komponen `<Can />` di frontend dan *dependency guard* di backend.
+3. **Penyimpanan PostgreSQL**:
+   - Skema tabel relasional terstruktur: `users`, `mt_user_roles`, `menus`, `permissions`, `role_permissions`, `cards`, `scan_logs`.
+   - Menggunakan `CURRENT_TIMESTAMP` untuk seluruh audit pencatatan waktu.
+4. **Alur Smart Redirect (HTTP 302 Fast Redirect)**:
+   - **Scan Pertama (Belum Aktif):** Mengarahkan pembeli langsung ke halaman aktivasi mandiri di HP.
+   - **Scan Seterusnya (Aktif):** Mengarahkan pengunjung cafe/toko langsung ke formulir rating bintang 5 Google Review (`https://search.google.com/local/writereview?placeid=...`) dalam hitungan milidetik.
+5. **Batch Barcode & QR Generator**:
+   - Generator kartu massal hingga ratusan kartu dalam 1 klik.
    - Ekspor otomatis **File ZIP** berisi:
-     - Gambar QR Code resolusi tinggi (PNG) untuk percetakan standee.
+     - Gambar QR Code resolusi tinggi (PNG) 300 DPI untuk cetak standee.
      - Gambar Vector (SVG) untuk CorelDraw/Adobe Illustrator/Laser Engraving.
-     - File CSV URL untuk aplikasi pemrogram NFC Writer (NFC Tools Pro, ACR122U).
-   - Monitoring total kartu, kartu aktif, dan jumlah scan review.
-4. **Simulator Interaktif**:
-   - Uji coba perilaku tap kartu NFC dan scan QR langsung di browser.
+     - File CSV URL untuk alat pemrogram NFC Writer (NFC Tools Pro, ACR122U).
+6. **Simulator Interaktif**:
+   - Uji coba perilaku tap kartu NFC dan scan QR langsung di browser tanpa memerlukan kartu fisik.
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Backend:** Python (FastAPI), SQLAlchemy, Segno QR Generator, Bcrypt.
-- **Frontend:** React.js (Vite), Modern Vanilla CSS, Lucide Icons, Canvas Confetti.
-- **Database:** SQLite (default/bisa diganti PostgreSQL).
-- **External API:** Google Places API (tersedia mode demo interaktif langsung tanpa API key).
+- **Backend:** Python (FastAPI), SQLAlchemy 2.0, PostgreSQL (psycopg2-binary), PyJWT, Bcrypt, Segno QR Generator.
+- **Frontend:** React 18, Vite, Dynamic RBAC Architecture, Lucide Icons, Canvas Confetti.
+- **Database:** PostgreSQL (dengan fallback otomatis ke SQLite untuk pengujian lokal).
 
 ---
 
 ## 💻 Cara Menjalankan
 
-### 1. Menjalankan Backend (FastAPI)
+### 1. Persiapan Database & Konfigurasi `.env`
+Buka file `.env` di root folder dan sesuaikan kredensial PostgreSQL Anda:
+```env
+# Ganti dengan password PostgreSQL lokal Anda:
+DATABASE_URL=postgresql://postgres:PASSWORD@localhost:5432/tapstar_db
+
+# Akun bawaan Super Admin:
+DEFAULT_SUPERADMIN_USERNAME=superadmin
+DEFAULT_SUPERADMIN_PASSWORD=Password123!
+```
+
+### 2. Menjalankan Backend (FastAPI)
 ```bash
-# Masuk ke virtualenv (jika belum aktif)
+# Masuk ke virtualenv
 .venv\Scripts\activate
 
 # Jalankan server FastAPI
@@ -46,7 +62,9 @@ python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 Akses Swagger API Documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-### 2. Menjalankan Frontend (React + Vite)
+> **Catatan:** Saat server pertama kali berjalan, sistem akan otomatis melakukan inisialisasi tabel skema database dan *seed* hak akses penuh untuk akun `superadmin`.
+
+### 3. Menjalankan Frontend (React + Vite)
 ```bash
 cd frontend
 npm run dev
@@ -55,47 +73,7 @@ Akses Web App: [http://localhost:5173](http://localhost:5173)
 
 ---
 
-## ⚙️ Konfigurasi `.env`
-
-File konfigurasi berada di root folder `.env`:
-```env
-BASE_URL=http://localhost:8000
-FRONTEND_URL=http://localhost:5173
-DATABASE_URL=sqlite:///./rate_grabber.db
-GOOGLE_PLACES_API_KEY=
-```
-> **Catatan:** Jika `GOOGLE_PLACES_API_KEY` dikosongkan, sistem otomatis menggunakan **Demo Mode** interaktif (termasuk pencarian custom nama toko) sehingga Anda bisa langsung menguji seluruh alur tanpa perlu kartu kredit / Google Cloud terlebih dahulu.
-
----
-
-## 🐳 Cara Deployment Menggunakan Docker (Production Ready)
-
-Aplikasi ini sudah dilengkapi dengan konfigurasi **Docker & Docker Compose** multi-stage yang siap di-deploy ke VPS (DigitalOcean, AWS, GCP, Ubuntu/Debian, dll).
-
-### 1. Salin Environment File
-```bash
-cp .env.docker.example .env
-```
-Sesuaikan `PUBLIC_BASE_URL` dengan domain atau IP publik server Anda (misal: `https://review.domainanda.com`).
-
-### 2. Jalankan dengan Satu Perintah
-```bash
-docker compose up -d --build
-```
-
-### 3. Cek Status Container
-```bash
-docker compose ps
-docker compose logs -f
-```
-
-### 4. Menghentikan Layanan
-```bash
-docker compose down
-```
-
-> **Keunggulan Setup Docker Ini:**
-> - **Single-Domain Reverse Proxy (Nginx):** Frontend React dan Backend FastAPI berjalan di bawah port yang sama (Port 80/443), bebas masalah CORS!
-> - **Persistent Data Volume:** Database kartu tersimpan aman di volume `rategrabber_db_data`, tidak akan hilang meskipun container diperbarui/direstart.
-> - **Otomatis Health Check:** Nginx hanya akan melayani request setelah backend FastAPI berstatus *healthy*.
-
+## 🔐 Kredensial Akun Default
+- **Username:** `superadmin`
+- **Password:** `Password123!`
+- **Role:** `Super Admin` (Akses Penuh Tanpa Batas)
